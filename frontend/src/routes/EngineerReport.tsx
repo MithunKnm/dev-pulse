@@ -11,7 +11,7 @@ import { CategoryBar } from "../components/CategoryBar";
 import { Loading, ErrorState } from "../components/State";
 import { useEngineer } from "../hooks/queries";
 import { CATEGORIES } from "../data/mock";
-import { C } from "../lib/utils";
+import { C, gradeColor } from "../lib/utils";
 
 export default function EngineerReport() {
   const { id = "" } = useParams();
@@ -51,8 +51,18 @@ export default function EngineerReport() {
           <ScoreRing value={e.score} size={140} label={e.name.split(" ")[0]} />
           <div className="flex-1 min-w-[240px]">
             <Eyebrow>Technical Excellence Report</Eyebrow>
-            <h1 className="text-[30px] text-ink font-extrabold mt-1 mb-1">{e.name}</h1>
-            <div className="text-sm text-mute mb-[18px]">{e.role} · {e.team}</div>
+            <div className="flex items-center gap-3 mt-1 mb-1 flex-wrap">
+              <h1 className="text-[30px] text-ink font-extrabold">{e.name}</h1>
+              <span
+                className="font-mono text-[13px] font-bold rounded-md px-2.5 py-1 border"
+                style={{ color: gradeColor(e.score), borderColor: gradeColor(e.score) + "55", background: gradeColor(e.score) + "14" }}
+              >
+                Grade {e.grade}
+              </span>
+            </div>
+            <div className="text-sm text-mute mb-[18px]">
+              {e.role} · {e.team} · <span className="font-mono text-faint">@{e.githubUsername}</span>
+            </div>
             <div className="flex gap-[26px] flex-wrap">
               {stats.map((s) => (
                 <div key={s.l}>
@@ -105,9 +115,9 @@ export default function EngineerReport() {
         </Card>
         <Card className="!border-amber/30">
           <div className="flex items-center gap-2 mb-3.5">
-            <AlertTriangle size={17} className="text-amber" /><span className="text-base text-ink font-bold">Improvement Areas</span>
+            <AlertTriangle size={17} className="text-amber" /><span className="text-base text-ink font-bold">Weaknesses</span>
           </div>
-          {e.improvements.map((s) => (
+          {e.weaknesses.map((s) => (
             <div key={s} className="flex gap-[9px] py-[7px] text-[13.5px] text-ink"><span className="text-amber">△</span> {s}</div>
           ))}
         </Card>

@@ -23,6 +23,11 @@ export const gradeColor = (s: number): string =>
 export const gradeLabel = (s: number): string =>
   s >= 85 ? "Exemplary" : s >= 70 ? "Strong" : s >= 55 ? "Developing" : "At Risk";
 
+// HLD §4: Technical Scoring Engine emits a letter grade alongside the score
+// (e.g. "84/100, Grade A"). A ≥85, B ≥70, C ≥55, else D.
+export const gradeLetter = (s: number): "A" | "B" | "C" | "D" =>
+  s >= 85 ? "A" : s >= 70 ? "B" : s >= 55 ? "C" : "D";
+
 export const initialsOf = (name: string): string =>
   name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 

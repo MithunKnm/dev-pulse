@@ -38,8 +38,9 @@ export default function Overview() {
           for every engineer in the org.
         </h1>
         <p className="text-[15.5px] text-mute leading-relaxed mt-4 max-w-[720px]">
-          DEV-PULSE continuously analyzes commits, PRs, reviews and repo hygiene across your
-          GitHub org, then generates scorecards and personalized recommendations backed by an LLM.
+          DEV-PULSE analyzes commits, PRs, reviews and branch hygiene across your GitHub org
+          through the Model Context Protocol (MCP), then generates Technical Excellence Reports
+          and personalized recommendations backed by an LLM.
         </p>
       </div>
 

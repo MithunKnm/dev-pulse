@@ -2,8 +2,22 @@
 // API layer. Right now these return mock data after a small delay so the app
 // behaves like it's talking to a real backend (loading states work, React Query
 // caches, etc). When the FastAPI backend is ready, replace each body with a
-// fetch() call to the matching endpoint — the return types stay the same, so
-// nothing else in the app has to change.
+// fetch() to the matching endpoint — the return types stay the same, so nothing
+// else in the app has to change.
+//
+// Backend services (HLD §3–4) sit behind the FastAPI gateway:
+//   Dashboard Service ......... org overview, scorecards
+//   Report Service ............ per-employee Technical Excellence Report
+//   Technical Analysis Service  scoring engine + AI recommendation engine
+//   GitHub MCP Client ......... talks to the GitHub MCP Server (no REST elsewhere)
+//   Employee Mapping Service .. resolves githubUsername -> Tricon employee
+//
+// Suggested endpoint mapping:
+//   fetchOrg       -> GET /dashboard/overview        (Dashboard Service)
+//   fetchEngineers -> GET /employees                 (Dashboard Service)
+//   fetchEngineer  -> GET /employees/{id}/report     (Report Service)
+//   fetchRepos     -> GET /repositories              (GitHub MCP Client)
+//   fetchSignals   -> GET /insights/org              (Technical Analysis Service)
 //
 //   export async function fetchEngineers() {
 //     const res = await fetch(`${API_BASE}/employees`);

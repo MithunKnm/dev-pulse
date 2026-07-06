@@ -56,7 +56,7 @@ export function Sidebar() {
         <div>
           <div className="text-[12.5px] text-ink font-semibold">DEV-PULSE · Sprint 3</div>
           <div className="text-[11.5px] text-mute mt-[3px] leading-snug">
-            Connect a GitHub org to replace mock data with live analytics.
+            Connect the GitHub MCP server to replace mock data with live analytics.
           </div>
         </div>
       </div>

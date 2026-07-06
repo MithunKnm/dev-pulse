@@ -41,6 +41,12 @@ export default function Engineers() {
                     {e.score}
                   </span>
                   <span className="font-mono text-[15px] text-faint">/100</span>
+                  <span
+                    className="font-mono text-[12px] font-bold rounded px-1.5 py-0.5 ml-1.5 self-center border"
+                    style={{ color: gradeColor(e.score), borderColor: gradeColor(e.score) + "55", background: gradeColor(e.score) + "14" }}
+                  >
+                    {e.grade}
+                  </span>
                 </div>
                 <div className="font-mono text-[10.5px] tracking-wide text-faint uppercase mt-1.5">Excellence Score</div>
               </div>

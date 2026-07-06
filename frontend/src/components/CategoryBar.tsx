@@ -1,4 +1,4 @@
-import { GitCommit, GitPullRequest, MessageSquare, BookOpen, FlaskConical, ShieldCheck } from "lucide-react";
+import { GitCommit, GitPullRequest, MessageSquare, BookOpen, GitBranch, FolderGit2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Category, CategoryKey } from "../lib/types";
 import { C, gradeColor } from "../lib/utils";
@@ -8,8 +8,8 @@ const ICONS: Record<CategoryKey, LucideIcon> = {
   pr: GitPullRequest,
   review: MessageSquare,
   docs: BookOpen,
-  testing: FlaskConical,
-  hygiene: ShieldCheck,
+  branch: GitBranch,
+  repo: FolderGit2,
 };
 
 export function CategoryBar({ cat, value }: { cat: Category; value: number }) {
