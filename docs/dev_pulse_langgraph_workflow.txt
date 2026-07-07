@@ -1,0 +1,263 @@
+# DEV-PULSE: PRODUCTION-GRADE LANGGRAPH AGENTIC WORKFLOW TEMPLATE
+# Based on DEV-PULSE High Level Design (HLD) v1.0
+# Target Copilot/LLM Prompting Template for Project Bootstrapping
+
+================================================================================
+1. ARCHITECTURAL ALIGNMENT WITH HLD
+================================================================================
+Based on the provided HLD, DEV-PULSE follows a sequential pipeline to process GitHub 
+data and generate an AI-powered Technical Excellence Report. 
+
+To make this production-ready using LangGraph, we will model the pipeline as a 
+StateGraph. This provides fault tolerance, checkpointing, and trace tracking 
+(via LangSmith), which are critical for an API-gateway driven architecture (FastAPI).
+
+Mapping HLD Components to LangGraph Nodes:
+- Data Collector & GitHub MCP Client -> `fetch_github_data_node`
+- Data Normalizer -> `normalize_data_node`
+- Metrics Extraction Engine -> `extract_metrics_node`
+- Technical Scoring Engine -> `calculate_score_node`
+- AI Recommendation Engine -> `generate_ai_report_node`
+- PostgreSQL Database -> `persist_to_db_node`
+
+================================================================================
+2. GRAPH STATE DEFINITION (STATE)
+================================================================================
+In LangGraph, the State acts as the shared memory for the workflow. We use `TypedDict` 
+(or Pydantic) to enforce strict types based on the HLD data models.
+
+```python
+from typing import TypedDict, List, Dict, Any, Optional
+from pydantic import BaseModel
+
+class Employee(BaseModel):
+    employee_id: str
+    github_username: str
+    name: str
+    team: str
+
+class AIReport(BaseModel):
+    strengths: List[str]
+    weaknesses: List[str]
+    recommendations: List[str]
+
+class DevPulseState(TypedDict):
+    # Inputs
+    employee: Employee
+    
+    # Workflow State
+    raw_github_data: Optional[Dict[str, Any]]
+    normalized_activities: Optional[List[Dict[str, Any]]] # Generic Activity Model
+    metrics: Optional[Dict[str, float]]
+    technical_score: Optional[int]
+    grade: Optional[str]
+    ai_report: Optional[AIReport]
+    
+    # Error Handling
+    error: Optional[str]
+```
+
+================================================================================
+3. NODE IMPLEMENTATIONS (THE WORKERS)
+================================================================================
+Each function represents a step in the DEV-PULSE data flow. 
+
+```python
+import json
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_openai import ChatOpenAI # Or ChatAnthropic based on HLD (Claude/OpenAI)
+
+# --- Node 1: Fetch Data via MCP ---
+async def fetch_github_data_node(state: DevPulseState) -> DevPulseState:
+    """
+    Connects to GitHub MCP Server.
+    Fetches Commits, PRs, Reviews, Branches.
+    """
+    try:
+        # TODO: Implement GitHub MCP Client call here
+        # raw_data = await mcp_client.get_developer_activity(state['employee'].github_username)
+        raw_data = {"commits": [], "prs": [], "reviews": []} # Placeholder
+        return {"raw_github_data": raw_data}
+    except Exception as e:
+        return {"error": f"MCP Fetch Failed: {str(e)}"}
+
+# --- Node 2: Data Normalizer ---
+async def normalize_data_node(state: DevPulseState) -> DevPulseState:
+    """
+    Converts raw GitHub responses into the Generic Activity Model.
+    """
+    raw_data = state.get("raw_github_data")
+    # TODO: Transform raw_data into List[GenericActivity]
+    # Example format: {"employeeld": "...", "activityType": "Commit", "timestamp": "..."}
+    normalized = [] 
+    return {"normalized_activities": normalized}
+
+# --- Node 3: Metrics Extraction Engine ---
+async def extract_metrics_node(state: DevPulseState) -> DevPulseState:
+    """
+    Calculates specific metrics from Generic Activity Model.
+    Metrics: Commit Frequency, Pull Request Participation, Code Review Participation, Documentation Contribution, Branch Hygiene, Repository Contribution.
+    """
+    activities = state.get("normalized_activities", [])
+    # TODO: Implement aggregation logic
+    metrics = {
+        "commit_frequency": 0.0,
+        "pr_participation": 0.0,
+        "code_review_participation": 0.0,
+        "documentation_contribution": 0.0,
+        "branch_hygiene": 0.0,
+        "repository_contribution": 0.0
+    }
+    return {"metrics": metrics}
+
+# --- Node 4: Technical Scoring Engine ---
+async def calculate_score_node(state: DevPulseState) -> DevPulseState:
+    """
+    Applies HLD weights to calculate final score (Out of 100).
+    """
+    metrics = state.get("metrics", {})
+    # Weights based on HLD: Commit Frequency (20%), PR Participation (20%), Reviews (15%), Documentation (15%), Branch Hygiene (15%), Repository Contribution (15%).
+    
+    # TODO: Calculate weighted sum
+    total_score = 84 # Placeholder from HLD example
+    
+    # Grade assignment logic 
+    grade = "A" # Placeholder from HLD example
+    
+    return {"technical_score": total_score, "grade": grade}
+
+# --- Node 5: AI Recommendation Engine (LLM Call) ---
+async def generate_ai_report_node(state: DevPulseState) -> DevPulseState:
+    """
+    Uses an LLM to generate strengths, weaknesses, and learning recommendations.
+    Takes Technical Score, Metric Breakdown, Repository Metadata, and Contribution Trends as input.
+    """
+    llm = ChatOpenAI(model="gpt-4-turbo", temperature=0.2) # or Claude based on tech stack
+    
+    prompt = f"""
+    You are an expert Engineering Manager evaluating a developer.
+    Based on the following data, generate a Technical Excellence Report.
+    
+    Developer: {state['employee'].name}
+    Technical Score: {state['technical_score']}/100 (Grade {state.get('grade')})
+    Metrics Breakdown: {json.dumps(state['metrics'])}
+    
+    Output strictly in JSON format matching this schema:
+    {{
+        "strengths": ["...", "..."],
+        "weaknesses": ["...", "..."],
+        "recommendations": ["...", "..."]
+    }}
+    """
+    
+    response = await llm.ainvoke([SystemMessage(content=prompt)])
+    # Parse JSON output from LLM
+    ai_report_data = json.loads(response.content)
+    ai_report = AIReport(**ai_report_data)
+    
+    return {"ai_report": ai_report}
+
+# --- Node 6: Database Persistence ---
+async def persist_to_db_node(state: DevPulseState) -> DevPulseState:
+    """
+    Stores only processed information (Employee Mapping, Technical Scores, Analysis History, Reports, Cached Metrics) to PostgreSQL.
+    """
+    # TODO: Implement SQLAlchemy / asyncpg DB inserts here based on DB Models
+    return {}
+```
+
+================================================================================
+4. GRAPH ORCHESTRATION & ROUTING (LANGGRAPH BUILDER)
+================================================================================
+```python
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+# 1. Initialize Graph
+workflow = StateGraph(DevPulseState)
+
+# 2. Add Nodes
+workflow.add_node("fetch_github_data", fetch_github_data_node)
+workflow.add_node("normalize_data", normalize_data_node)
+workflow.add_node("extract_metrics", extract_metrics_node)
+workflow.add_node("calculate_score", calculate_score_node)
+workflow.add_node("generate_ai_report", generate_ai_report_node)
+workflow.add_node("persist_to_db", persist_to_db_node)
+
+# 3. Define Conditional Routing (Error Handling)
+def check_for_errors(state: DevPulseState) -> str:
+    if state.get("error"):
+        return "error_handler"
+    return "continue"
+
+# 4. Add Edges (The Pipeline Flow)
+workflow.set_entry_point("fetch_github_data")
+
+# Route after fetch: if error -> END, else -> normalize
+workflow.add_conditional_edges(
+    "fetch_github_data",
+    lambda state: "continue" if not state.get("error") else "end",
+    {"continue": "normalize_data", "end": END}
+)
+
+workflow.add_edge("normalize_data", "extract_metrics")
+workflow.add_edge("extract_metrics", "calculate_score")
+workflow.add_edge("calculate_score", "generate_ai_report")
+workflow.add_edge("generate_ai_report", "persist_to_db")
+workflow.add_edge("persist_to_db", END)
+
+# 5. Compile Graph with Checkpointer (For Production Resilience)
+memory = MemorySaver()
+dev_pulse_app = workflow.compile(checkpointer=memory)
+```
+
+================================================================================
+5. FASTAPI INTEGRATION
+================================================================================
+To expose this workflow to the React Dashboard via the FastAPI Backend.
+
+```python
+from fastapi import FastAPI, BackgroundTasks
+import uuid
+
+app = FastAPI()
+
+@app.post("/api/v1/analyze/{employee_id}")
+async def trigger_analysis(employee_id: str):
+    """
+    Triggered by the React Dashboard when an EM selects a developer.
+    """
+    # 1. Fetch Employee from DB using mapping service 
+    employee = get_employee_mapping(employee_id) 
+    
+    # 2. Initialize State
+    initial_state = {
+        "employee": employee
+    }
+    
+    # 3. Create unique thread ID for LangGraph checkpointing
+    thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # 4. Execute workflow asynchronously 
+    final_state = await dev_pulse_app.ainvoke(initial_state, config)
+    
+    if final_state.get("error"):
+        return {"status": "failed", "message": final_state["error"]}
+        
+    return {
+        "status": "success",
+        "technical_score": final_state["technical_score"],
+        "grade": final_state["grade"],
+        "ai_report": final_state["ai_report"].dict()
+    }
+```
+
+================================================================================
+6. PRODUCTION GRADE CHECKLIST (For Copilot/Developer)
+================================================================================
+1. Structured Outputs: Use `with_structured_output(AIReport)` on the ChatOpenAI model in Node 5 to ensure reliable JSON parsing without Regex/JSON string manipulation.
+2. Async Execution: Ensure all node functions are `async` and use asynchronous db drivers (like `asyncpg`) to prevent blocking the FastAPI event loop.
+3. Observability: Set up `LANGCHAIN_TRACING_V2=true` in `.env` to trace the execution path of the graph, view latency of the MCP fetch vs LLM generation, and debug prompts.
+4. Retry Logic: Use LangChain's built-in retry mechanisms on the `generate_ai_report` node in case of rate limits or transient API errors from Claude/OpenAI.
+5. Abstraction: Keep the `Generic Activity Model` strictly decoupled from GitHub schemas inside `normalize_data_node` to guarantee phase 2 readiness for Azure Boards, SonarQube, Jira, and Teams.
