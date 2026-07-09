@@ -1,0 +1,54 @@
+DEV-PULSE: Architecture & Project Explanation
+===========================================
+
+1. Overview: What are we building?
+----------------------------------
+We are building DEV-PULSE, an AI-powered Technical Excellence Intelligence Platform. The primary goal of this system is to help Engineering Managers, Technical Leads, and Architects evaluate the technical contributions of individual developers. 
+
+Unlike traditional analytics tools that just count raw repository events, DEV-PULSE focuses specifically on "developer-centric technical excellence." It takes developer activity, normalizes it, scores it based on engineering best practices, and uses AI to generate personalized improvement reports.
+
+2. The Tech Stack
+-----------------
+* Frontend: React, TypeScript, Tailwind CSS, Lovable
+* Backend: Python, FastAPI
+* Database: PostgreSQL
+* Integrations: Model Context Protocol (MCP)
+* AI Model: Claude / OpenAI
+
+3. How Data Flows Through the System (The Agentic Workflow)
+-----------------------------------------------------------
+The core backend of DEV-PULSE acts as a sequential data pipeline. Here is step-by-step how the system processes a developer's data:
+
+Step 1: The Trigger
+The process begins when an Engineering Manager logs into the React Dashboard, selects a specific repository, and chooses a developer to evaluate. This sends a request to the FastAPI Backend. The Employee Mapping Service links the internal employee ID to their GitHub username.
+
+Step 2: Data Collection (GitHub MCP Client)
+The system connects to the GitHub MCP Server to fetch raw data. It pulls commits, Pull Requests (PRs), reviews, branches, and contributor metadata. Notably, the system does not use standard REST APIs outside of this integration layer; it relies entirely on MCP, making it scalable for future integrations.
+
+Step 3: Data Normalization
+GitHub returns data in specific formats. To ensure the platform can eventually integrate with other tools (like Jira or Azure Boards), the Data Normalizer converts all raw GitHub responses into a single, standardized format called the "Generic Activity Model".
+
+Step 4: Metrics Extraction
+Once the data is standardized, the Metrics Extraction Engine calculates specific engineering KPIs. For Phase 1, these include:
+* Commit Frequency
+* Pull Request Participation
+* Code Review Participation
+* Documentation Contribution
+* Branch Hygiene
+* Repository Contribution
+
+Step 5: Technical Scoring
+The Technical Scoring Engine takes the extracted metrics and applies predefined weights to calculate a final "Technical Excellence Score" out of 100. For example, Commit Frequency and PR Participation might each account for 20% of the score, while Reviews and Documentation account for 15% each [cite: 392]. This score translates into a grade (e.g., Grade A).
+
+Step 6: AI Insights Generation
+The AI Recommendation Engine steps in. It takes the Technical Score, the metric breakdown, repository metadata, and contribution trends, and passes them to an LLM (Claude or OpenAI). The AI generates a customized Technical Excellence Report detailing the developer's strengths, weaknesses, and a tailored learning improvement plan.
+
+Step 7: Storage and Display
+Finally, the processed results (the metrics, scores, and AI report) are stored in the PostgreSQL database [cite: 411, 416, 418]. The raw GitHub data is intentionally NOT stored. The final insights are then pushed to the React Dashboard for the Engineering Manager to review.
+
+4. Future Roadmap (Phase 2)
+---------------------------
+While the MVP (Phase 1) focuses strictly on GitHub via MCP, the system is architected to scale. Phase 2 will introduce:
+* New MCP Connectors for Azure Boards, SonarQube, Jira, and MS Teams.
+* New extraction metrics like Test Coverage, Build Quality, Sonar Issues, and Sprint Velocity.
+* New dashboard features like Team Health, Skill Matrices, and Leadership Readiness indices.
