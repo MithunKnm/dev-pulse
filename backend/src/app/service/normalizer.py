@@ -1,4 +1,8 @@
-"""Data Normalizer — converts raw GitHub MCP responses into GenericActivity list."""
+"""Data Normalizer — converts raw GitHub MCP responses into GenericActivity list.
+
+This implementation delegates normalization to the analytics DataNormalizer
+and maps analytics Activity objects to core.GenericActivity.
+"""
 
 from __future__ import annotations
 
@@ -6,8 +10,22 @@ import logging
 from typing import Any, Dict, List
 
 from ..core.models import ActivityType, GenericActivity
+from app.analytics.normalizer import DataNormalizer
 
 logger = logging.getLogger(__name__)
+
+
+def _map_activity_type(analytics_type: str) -> ActivityType:
+    """Map analytics activity type string to core ActivityType."""
+    mapping = {
+        "COMMIT": ActivityType.COMMIT,
+        "PULL_REQUEST": ActivityType.PULL_REQUEST,
+        "REVIEW": ActivityType.REVIEW,
+        # Analytics uses REPOSITORY for repository metadata — map to BRANCH for compatibility
+        "REPOSITORY": ActivityType.BRANCH,
+        "BRANCH": ActivityType.BRANCH,
+    }
+    return mapping.get(analytics_type.upper(), ActivityType.BRANCH)
 
 
 def normalize(
@@ -15,86 +33,46 @@ def normalize(
     employee_id: str,
     github_username: str,
 ) -> List[GenericActivity]:
-    """Transform raw GitHub data into a flat list of GenericActivity records."""
+    """Transform raw GitHub data into a flat list of core.GenericActivity records.
+
+    Steps:
+    1. Flatten raw_data payloads into one list
+    2. Use app.analytics.normalizer.DataNormalizer.normalize_batch to obtain
+       typed Activity objects
+    3. Map each Activity into core.GenericActivity
+    """
 
     activities: List[GenericActivity] = []
 
-    # --- Commits ---
-    for c in raw_data.get("commits", []):
-        commit_info = c.get("commit", {})
-        activities.append(
-            GenericActivity(
-                employee_id=employee_id,
-                github_username=github_username,
-                activity_type=ActivityType.COMMIT,
-                timestamp=commit_info.get("author", {}).get("date", ""),
-                metadata={
-                    "sha": c.get("sha", ""),
-                    "message": commit_info.get("message", ""),
-                    "url": c.get("html_url", ""),
-                },
-            )
-        )
+    # Build a single payloads list from whatever MCP returned
+    payloads: List[Dict[str, Any]] = []
+    for key in ("commits", "pull_requests", "reviews", "branches", "repositories"):
+        items = raw_data.get(key)
+        if isinstance(items, list):
+            payloads.extend(items)
 
-    # --- Pull Requests ---
-    for pr in raw_data.get("pull_requests", []):
-        activities.append(
-            GenericActivity(
-                employee_id=employee_id,
-                github_username=github_username,
-                activity_type=ActivityType.PULL_REQUEST,
-                timestamp=pr.get("created_at", ""),
-                metadata={
-                    "number": pr.get("number"),
-                    "title": pr.get("title", ""),
-                    "state": pr.get("state", ""),
-                    "body": pr.get("body", ""),
-                    "merged": pr.get("merged", False),
-                    "additions": pr.get("additions", 0),
-                    "deletions": pr.get("deletions", 0),
-                    "changed_files": pr.get("changed_files", 0),
-                    "url": pr.get("html_url", ""),
-                },
-            )
-        )
+    # Delegate normalization to analytics module (employee as github_username)
+    analytics_activities = DataNormalizer.normalize_batch(payloads, employee=github_username)
 
-    # --- Reviews ---
-    for r in raw_data.get("reviews", []):
-        activities.append(
-            GenericActivity(
-                employee_id=employee_id,
-                github_username=github_username,
-                activity_type=ActivityType.REVIEW,
-                timestamp=r.get("submitted_at", ""),
-                metadata={
-                    "state": r.get("state", ""),
-                    "body": r.get("body", ""),
-                    "pr_url": r.get("pull_request_url", ""),
-                },
-            )
-        )
+    for a in analytics_activities:
+        # Extract timestamp (ensure string) — analytics uses datetime objects
+        ts = a.timestamp.isoformat() if hasattr(a.timestamp, "isoformat") else str(a.timestamp)
 
-    # --- Branches ---
-    for b in raw_data.get("branches", []):
-        activities.append(
-            GenericActivity(
-                employee_id=employee_id,
-                github_username=github_username,
-                activity_type=ActivityType.BRANCH,
-                timestamp="",  # branches don't have timestamps
-                metadata={
-                    "name": b.get("name", ""),
-                    "protected": b.get("protected", False),
-                },
-            )
+        # Map activity type
+        atype = _map_activity_type(a.activity_type.value if hasattr(a.activity_type, "value") else str(a.activity_type))
+
+        ga = GenericActivity(
+            employee_id=employee_id,
+            github_username=github_username,
+            activity_type=atype,
+            timestamp=ts,
+            metadata=a.metadata or {},
         )
+        activities.append(ga)
 
     logger.info(
-        "Normalized %d activities (commits=%d, prs=%d, reviews=%d, branches=%d)",
+        "Normalized %d activities via analytics normalizer (payloads=%d)",
         len(activities),
-        len(raw_data.get("commits", [])),
-        len(raw_data.get("pull_requests", [])),
-        len(raw_data.get("reviews", [])),
-        len(raw_data.get("branches", [])),
+        len(payloads),
     )
     return activities
