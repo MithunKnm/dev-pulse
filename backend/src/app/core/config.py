@@ -13,7 +13,7 @@ load_dotenv(_ENV_PATH)
 
 
 class Settings:
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_api_key: str = os.getenv("HUGGINGFACEHUB_API_TOKEN", "")
     github_token: str = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN", "")
     test_repo: str = os.getenv("TEST_GITHUB_REPO", "octocat/Hello-World")
     test_username: str = os.getenv("TEST_GITHUB_USERNAME", "octocat")
