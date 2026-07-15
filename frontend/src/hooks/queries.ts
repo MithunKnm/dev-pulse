@@ -1,19 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import {
-  fetchOrg, fetchEngineers, fetchEngineer, fetchRepos, fetchSignals,
-} from "../lib/api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { analyzeDeveloper, checkHealth } from "../lib/api";
 
-export const useOrg = () =>
-  useQuery({ queryKey: ["org"], queryFn: fetchOrg });
+// Is the FastAPI backend reachable? Polls health every 30s.
+export const useHealth = () =>
+  useQuery({ queryKey: ["health"], queryFn: checkHealth, refetchInterval: 30_000, retry: false });
 
-export const useEngineers = () =>
-  useQuery({ queryKey: ["engineers"], queryFn: fetchEngineers });
-
-export const useEngineer = (id: string) =>
-  useQuery({ queryKey: ["engineer", id], queryFn: () => fetchEngineer(id), enabled: !!id });
-
-export const useRepos = () =>
-  useQuery({ queryKey: ["repos"], queryFn: fetchRepos });
-
-export const useSignals = () =>
-  useQuery({ queryKey: ["signals"], queryFn: fetchSignals });
+// Run the live analyze pipeline. Use as a mutation:
+//   const analyze = useAnalyze();
+//   analyze.mutate({ owner, repo, githubUsername });
+export const useAnalyze = () =>
+  useMutation({ mutationFn: analyzeDeveloper });

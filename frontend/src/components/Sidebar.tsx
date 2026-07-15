@@ -1,12 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, GitBranch, Sparkles, FileText, Activity } from "lucide-react";
+import { LayoutDashboard, Zap, Activity, Sparkles } from "lucide-react";
 
 const NAV = [
-  { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/engineers", label: "Engineers", icon: Users },
-  { to: "/repositories", label: "Repositories", icon: GitBranch },
-  { to: "/insights", label: "AI Insights", icon: Sparkles },
-  { to: "/reports", label: "Reports", icon: FileText },
+  { to: "/", label: "Home", icon: LayoutDashboard, end: true },
+  { to: "/analyze", label: "Live Analysis", icon: Zap },
 ];
 
 export function Sidebar() {
@@ -54,9 +51,9 @@ export function Sidebar() {
       <div className="flex gap-2.5 p-3.5 rounded-xl bg-surface border border-border mt-2">
         <Sparkles size={16} className="text-purple shrink-0 mt-0.5" />
         <div>
-          <div className="text-[12.5px] text-ink font-semibold">DEV-PULSE · Sprint 3</div>
+          <div className="text-[12.5px] text-ink font-semibold">DEV-PULSE · MVP</div>
           <div className="text-[11.5px] text-mute mt-[3px] leading-snug">
-            Connect the GitHub MCP server to replace mock data with live analytics.
+            Live, on-demand analysis. Org dashboards &amp; saved reports arrive with backend persistence.
           </div>
         </div>
       </div>

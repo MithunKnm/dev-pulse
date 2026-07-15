@@ -22,64 +22,48 @@ export interface Category {
   weight: number;
 }
 
-export interface Engineer {
-  id: string;
-  employeeId: string;      // HLD: Employee.employeeId (Tricon internal ID)
-  githubUsername: string;  // HLD: Employee.githubUsername (mapped by Employee Mapping Service)
-  name: string;
-  email: string;           // HLD: Employee.email
-  role: string;
-  team: string;
+// ---------------------------------------------------------------------------
+// Live backend integration — POST /api/v1/analyze
+// ---------------------------------------------------------------------------
+
+// What the user fills in to run the real DEV-PULSE pipeline on a developer+repo.
+export interface AnalyzeInput {
+  owner: string;           // GitHub org/user that owns the repo
+  repo: string;            // repository name
+  githubUsername: string;  // the developer to analyze
+  employeeId?: string;     // optional Tricon employee id (backend defaults to EMP-001)
+  name?: string;           // optional display name
+}
+
+// Raw response shape from the FastAPI backend (snake_case, as-is).
+export interface AnalyzeApiResponse {
+  status: string;
+  technical_score: number | null;
+  grade: string | null;
+  metrics: {
+    commit_frequency: number;
+    pr_participation: number;
+    code_review_participation: number;
+    documentation_contribution: number;
+    branch_hygiene: number;
+    repository_contribution: number;
+  } | null;
+  ai_report: {
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+    learning: string[];
+  } | null;
+  error?: string | null;
+}
+
+// Normalized shape the UI consumes (camelCase, cats keyed like CategoryScores).
+export interface LiveReport {
   score: number;
-  grade: Grade;            // HLD: TechnicalScore.grade
-  delta: number;
-  commits: number;
-  prs: number;
-  reviews: number;
+  grade: Grade;
   cats: CategoryScores;
-  strengths: string[];     // HLD AI Report: strengths
-  weaknesses: string[];    // HLD AI Report: weaknesses
-  recommendation: string;  // HLD AI Report: recommendations / improvement plan
-  learning: string[];      // HLD AI Report: learning recommendations
-}
-
-export interface Repo {
-  repositoryId: string;                 // HLD: Repository.repositoryId
-  name: string;                         // HLD: Repository.repositoryName
-  lang: string;                         // HLD: Repository.language
-  visibility: "public" | "private";     // HLD: Repository.visibility
-  updated: string;
-  health: number;
-  commits: number;
-  prs: number;
-  devs: number;
-}
-
-export interface Kpi {
-  key: string;
-  label: string;
-  value: string;
-  delta: string;
-  note: string;
-}
-
-export interface TrendPoint {
-  w: string;
-  score: number;
-}
-
-export interface OrgData {
-  score: number;
-  engineers: number;
-  repositories: number;
-  kpis: Kpi[];
-  trend: TrendPoint[];
-}
-
-export type SignalKind = "success" | "warning" | "info";
-
-export interface Signal {
-  kind: SignalKind;
-  title: string;
-  body: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  learning: string[];
 }
