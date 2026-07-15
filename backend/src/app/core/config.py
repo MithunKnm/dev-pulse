@@ -13,7 +13,10 @@ load_dotenv(_ENV_PATH)
 
 
 class Settings:
-    openai_api_key: str = os.getenv("HUGGINGFACEHUB_API_TOKEN", "")
+    huggingface_api_token: str = os.getenv("HUGGINGFACEHUB_API_TOKEN", "")
+    huggingface_model: str = os.getenv(
+        "HUGGINGFACE_MODEL", "Qwen/Qwen2.5-7B-Instruct"
+    )
     github_token: str = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN", "")
     test_repo: str = os.getenv("TEST_GITHUB_REPO", "octocat/Hello-World")
     test_username: str = os.getenv("TEST_GITHUB_USERNAME", "octocat")

@@ -1,12 +1,14 @@
-"""AI Report Generator — uses OpenAI to produce a Technical Excellence Report."""
+"""AI Report Generator — uses Hugging Face Inference to produce a Technical Excellence Report."""
 
 from __future__ import annotations
 
+import json
 import logging
 
-import openai
+from huggingface_hub.errors import HfHubHTTPError
 from langchain_core.messages import SystemMessage
-from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from tenacity import (
     before_sleep_log,
     retry,
@@ -20,9 +22,11 @@ from ..core.models import AIReport, MetricsResult
 
 logger = logging.getLogger(__name__)
 
+_parser = PydanticOutputParser(pydantic_object=AIReport)
+
 
 @retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
+    retry=retry_if_exception_type(HfHubHTTPError),
     wait=wait_exponential(multiplier=30, min=30, max=300),
     stop=stop_after_attempt(5),
     before_sleep=before_sleep_log(logger, logging.WARNING),
@@ -35,16 +39,15 @@ async def generate_report(
     metrics: MetricsResult,
     repo_name: str,
 ) -> AIReport:
-    """Call the LLM and return a structured AIReport."""
+    """Call the Hugging Face-hosted LLM and return a structured AIReport."""
 
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
+    endpoint = HuggingFaceEndpoint(
+        repo_id=settings.huggingface_model,
+        huggingfacehub_api_token=settings.huggingface_api_token,
+        max_new_tokens=768,
         temperature=0.3,
-        api_key=settings.openai_api_key,
-        max_retries=0,
     )
-
-    structured_llm = llm.with_structured_output(AIReport)
+    llm = ChatHuggingFace(llm=endpoint)
 
     prompt = (
         "You are a senior Engineering Manager evaluating a developer's technical excellence.\n"
@@ -59,14 +62,20 @@ async def generate_report(
         f"  - Documentation:            {metrics.documentation_contribution}/100 (weight 15%)\n"
         f"  - Branch Hygiene:           {metrics.branch_hygiene}/100 (weight 15%)\n"
         f"  - Repository Contribution:  {metrics.repository_contribution}/100 (weight 15%)\n\n"
-        "Return a JSON object with:\n"
-        '  "strengths": list of 2-4 strengths\n'
-        '  "weaknesses": list of 2-3 areas for improvement\n'
-        '  "recommendations": list of 2-3 actionable recommendations\n'
-        '  "learning": list of 2-3 learning resources or topics\n'
+        "Respond with ONLY a JSON object (no extra text) matching this schema:\n"
+        f"{_parser.get_format_instructions()}\n"
     )
 
     logger.info("Generating AI report for %s (score=%d, grade=%s)", developer_name, score, grade)
-    report: AIReport = await structured_llm.ainvoke([SystemMessage(content=prompt)])
+    response = await llm.ainvoke([SystemMessage(content=prompt)])
+    content = response.content if isinstance(response.content, str) else str(response.content)
+
+    try:
+        report = _parser.parse(content)
+    except Exception:
+        logger.warning("Structured parse failed; falling back to raw JSON extraction")
+        start, end = content.find("{"), content.rfind("}") + 1
+        report = AIReport.model_validate(json.loads(content[start:end]))
+
     logger.info("AI report generated: %s", report.model_dump())
     return report

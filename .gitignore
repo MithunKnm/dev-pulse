@@ -5,8 +5,15 @@ __pycache__/
 
 # Virtual environments
 venv/
+venv*/
 .venv/
 env/
+
+# Local Python/npm tooling artifacts
+.uv-python/
+.uv-cache/
+.npm-cache/
+.npmrc-clean
 
 # Distribution / packaging
 dist/
