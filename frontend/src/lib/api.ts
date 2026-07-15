@@ -1,60 +1,83 @@
 // -----------------------------------------------------------------------------
-// API layer. Right now these return mock data after a small delay so the app
-// behaves like it's talking to a real backend (loading states work, React Query
-// caches, etc). When the FastAPI backend is ready, replace each body with a
-// fetch() to the matching endpoint — the return types stay the same, so nothing
-// else in the app has to change.
+// API layer.
 //
-// Backend services (HLD §3–4) sit behind the FastAPI gateway:
-//   Dashboard Service ......... org overview, scorecards
-//   Report Service ............ per-employee Technical Excellence Report
-//   Technical Analysis Service  scoring engine + AI recommendation engine
-//   GitHub MCP Client ......... talks to the GitHub MCP Server (no REST elsewhere)
-//   Employee Mapping Service .. resolves githubUsername -> Tricon employee
+// The FastAPI backend currently exposes exactly two endpoints, and both are
+// wired here:
+//   GET  /api/v1/health   -> { status: "ok" }
+//   POST /api/v1/analyze  -> runs the GitHub-MCP pipeline for ONE developer on
+//                            ONE repo and returns a live score + grade + the six
+//                            0-100 metrics + an AI report.
 //
-// Suggested endpoint mapping:
-//   fetchOrg       -> GET /dashboard/overview        (Dashboard Service)
-//   fetchEngineers -> GET /employees                 (Dashboard Service)
-//   fetchEngineer  -> GET /employees/{id}/report     (Report Service)
-//   fetchRepos     -> GET /repositories              (GitHub MCP Client)
-//   fetchSignals   -> GET /insights/org              (Technical Analysis Service)
-//
-//   export async function fetchEngineers() {
-//     const res = await fetch(`${API_BASE}/employees`);
-//     if (!res.ok) throw new Error("Failed to load engineers");
-//     return res.json() as Promise<Engineer[]>;
-//   }
+// There is NO persistence and NO list/aggregate endpoints, so the app has no
+// stored developers, repositories, insights, or reports to show — only the
+// live, on-demand analysis below.
 // -----------------------------------------------------------------------------
-import type { Engineer, Repo, OrgData, Signal } from "./types";
-import { ENGINEERS, REPOS, ORG, ORG_SIGNALS } from "../data/mock";
+import type { AnalyzeInput, AnalyzeApiResponse, LiveReport, Grade } from "./types";
 
-// export const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+// Point this at the running FastAPI server. Override with VITE_API_BASE in .env.
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-export async function fetchOrg(): Promise<OrgData> {
-  await delay(250);
-  return ORG;
+export async function checkHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/health`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data?.status === "ok";
+  } catch {
+    return false;
+  }
 }
 
-export async function fetchEngineers(): Promise<Engineer[]> {
-  await delay(350);
-  return ENGINEERS;
+function toGrade(g: string | null): Grade {
+  return g === "A" || g === "B" || g === "C" || g === "D" ? g : "D";
 }
 
-export async function fetchEngineer(id: string): Promise<Engineer> {
-  await delay(300);
-  const found = ENGINEERS.find((e) => e.id === id);
-  if (!found) throw new Error(`Engineer "${id}" not found`);
-  return found;
-}
+/** Run the live DEV-PULSE pipeline for a developer on a repository. */
+export async function analyzeDeveloper(input: AnalyzeInput): Promise<LiveReport> {
+  const res = await fetch(`${API_BASE}/api/v1/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      owner: input.owner.trim(),
+      repo: input.repo.trim(),
+      github_username: input.githubUsername.trim(),
+      employee_id: input.employeeId?.trim() || "EMP-001",
+      name: input.name?.trim() || "",
+    }),
+  });
 
-export async function fetchRepos(): Promise<Repo[]> {
-  await delay(350);
-  return REPOS;
-}
+  if (!res.ok) {
+    // FastAPI returns { detail: "..." } for HTTPException (e.g. 502 pipeline error)
+    let detail = `Analyze failed (HTTP ${res.status})`;
+    try {
+      const err = await res.json();
+      if (err?.detail) detail = typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail);
+    } catch { /* ignore parse error */ }
+    throw new Error(detail);
+  }
 
-export async function fetchSignals(): Promise<Signal[]> {
-  await delay(300);
-  return ORG_SIGNALS;
+  const data: AnalyzeApiResponse = await res.json();
+  if (data.error) throw new Error(data.error);
+  if (!data.metrics || !data.ai_report || data.technical_score == null) {
+    throw new Error("Backend returned an incomplete analysis.");
+  }
+
+  const m = data.metrics;
+  // Map backend snake_case metrics -> frontend CategoryScores keys (both 0-100).
+  return {
+    score: Math.round(data.technical_score),
+    grade: toGrade(data.grade),
+    cats: {
+      commit: Math.round(m.commit_frequency),
+      pr: Math.round(m.pr_participation),
+      review: Math.round(m.code_review_participation),
+      docs: Math.round(m.documentation_contribution),
+      branch: Math.round(m.branch_hygiene),
+      repo: Math.round(m.repository_contribution),
+    },
+    strengths: data.ai_report.strengths ?? [],
+    weaknesses: data.ai_report.weaknesses ?? [],
+    recommendations: data.ai_report.recommendations ?? [],
+    learning: data.ai_report.learning ?? [],
+  };
 }

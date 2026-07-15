@@ -3,11 +3,18 @@
 React dashboard for the DEV-PULSE Technical Excellence Intelligence Platform.
 
 **Stack:** React 18 · TypeScript · Tailwind CSS · React Query (TanStack Query) · React Router · Vite
-Charts via recharts, icons via lucide-react.
+Icons via lucide-react.
 
-Currently runs on **mock data** served through an async API layer, so loading states,
-caching and the data flow all behave like the real backend is connected. Swapping to the
-FastAPI backend is a one-file change (see below).
+The backend has **no database or persistence yet** — it only runs a live, on-demand
+analysis of one developer on one repo. So this app has **no stored data to show**: no
+organization dashboard, engineer directory, saved reports, or stored AI insights. It is
+deliberately scoped to two pages:
+
+- **Home** (`/`) — what DEV-PULSE does, the pipeline, and the scoring model (methodology only, no fabricated data).
+- **Live Analysis** (`/analyze`) — the real feature: submit owner / repo / GitHub username, call the backend, render the live report.
+
+When the backend adds persistence + list endpoints, the aggregate pages can come back
+(they're in git history).
 
 ---
 
@@ -37,55 +44,81 @@ frontend/
 ├── public/favicon.svg
 └── src/
     ├── main.tsx              # QueryClientProvider + RouterProvider
-    ├── router.tsx
+    ├── router.tsx            # Home + Live Analysis
     ├── App.tsx               # layout: sidebar + topbar + <Outlet/>
     ├── index.css             # Tailwind directives + Inter font
     ├── lib/
-    │   ├── types.ts          # Engineer, Repo, OrgData, Signal …
-    │   ├── api.ts            # async data layer  ← swap for fetch() here
+    │   ├── types.ts          # CategoryScores, AnalyzeInput, LiveReport …
+    │   ├── api.ts            # real backend calls: analyzeDeveloper(), checkHealth()
+    │   ├── metrics.ts        # the six scoring metrics + weights (real methodology)
     │   └── utils.ts          # colors, grade helpers
-    ├── data/
-    │   └── mock.ts           # the mock dataset (6-person team)
     ├── hooks/
-    │   └── queries.ts        # useOrg / useEngineers / useEngineer / useRepos / useSignals
-    ├── components/           # Sidebar, Topbar, Card, ScoreRing, CategoryBar, State
-    └── routes/               # Overview, Engineers, EngineerReport, Repositories, Insights, Reports
+    │   └── queries.ts        # useAnalyze (mutation) + useHealth
+    ├── components/           # Sidebar, Topbar (backend-status chip), Card, ScoreRing, CategoryBar
+    └── routes/               # Home, Analyze
 ```
 
 ---
 
-## Connecting the FastAPI backend
+## Backend integration
 
-The UI never touches mock data directly — every page reads through a **React Query hook**
-(`src/hooks/queries.ts`), which calls a function in `src/lib/api.ts`. To go live, edit only
-`api.ts`: replace each function body with a `fetch()` to the matching endpoint. The return
-types are unchanged, so pages, caching and loading states keep working.
+Point the frontend at the FastAPI backend with `VITE_API_BASE` (see `.env.example`):
 
-```ts
-// src/lib/api.ts
-const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
-
-export async function fetchEngineers(): Promise<Engineer[]> {
-  const res = await fetch(`${API_BASE}/employees`);
-  if (!res.ok) throw new Error("Failed to load engineers");
-  return res.json();
-}
+```
+VITE_API_BASE=http://localhost:8000
 ```
 
-Suggested endpoint mapping (services per HLD §3–4):
+The backend currently exposes two endpoints, and the **Live Analysis** page (`/analyze`)
+is wired directly to them:
 
-| Hook | Function | Endpoint | Service |
-|------|----------|----------|---------|
-| `useOrg` | `fetchOrg` | `GET /dashboard/overview` | Dashboard Service |
-| `useEngineers` | `fetchEngineers` | `GET /employees` | Dashboard Service |
-| `useEngineer` | `fetchEngineer` | `GET /employees/:id/report` | Report Service |
-| `useRepos` | `fetchRepos` | `GET /repositories` | GitHub MCP Client |
-| `useSignals` | `fetchSignals` | `GET /insights/org` | Technical Analysis Service |
+| Endpoint | Used by | Purpose |
+|----------|---------|---------|
+| `GET /api/v1/health` | `useHealth` → `checkHealth()` | backend-online chip on the Analyze page |
+| `POST /api/v1/analyze` | `useAnalyze` → `analyzeDeveloper()` | runs the GitHub-MCP pipeline for one developer on one repo |
 
-Set `VITE_API_BASE` in a `.env` file (e.g. `VITE_API_BASE=http://localhost:8000`) to point at
-the running FastAPI server.
+`POST /api/v1/analyze` request → `{ owner, repo, github_username, employee_id?, name? }`.
+Response is mapped in `src/lib/api.ts` (snake_case → the UI's `CategoryScores` keys):
+
+```
+commit_frequency          -> cats.commit
+pr_participation          -> cats.pr
+code_review_participation -> cats.review
+documentation_contribution-> cats.docs
+branch_hygiene            -> cats.branch
+repository_contribution   -> cats.repo
+technical_score/grade     -> score/grade
+ai_report.{strengths,weaknesses,recommendations,learning} -> report
+```
+
+### Still on mock data
+
+### No stored data
+
+There is intentionally **no mock dashboard** anymore. The backend has no database or
+list endpoints, so there is nothing to list — the app shows the live analysis and the
+methodology, and nothing that would fabricate developer counts, repositories, or saved
+insights. When persistence lands on the backend, add the list endpoints, then reintroduce
+the aggregate pages (they're preserved in git history) reading from new hooks in
+`src/hooks/queries.ts`.
+
+### Running both together
+
+```bash
+# terminal 1 — backend
+cd backend && uvicorn src.app.app:app --reload    # serves http://localhost:8000
+
+# terminal 2 — frontend
+cd frontend && npm install && npm run dev          # serves http://localhost:5173
+```
+
+Then open the app, go to **Live Analysis**, and enter a repo owner / repo / GitHub username
+(e.g. `octocat` / `Hello-World` / `octocat`). The backend needs
+`GITHUB_PERSONAL_ACCESS_TOKEN` (and its LLM key) configured in its own `.env`.
+
 
 ## Scoring model (HLD §4 — Phase 1)
+
+Defined in `src/lib/metrics.ts`:
 
 | Metric | Weight |
 |---|---|
@@ -99,20 +132,18 @@ the running FastAPI server.
 The engine emits a score `/100` plus a letter **Grade** (A ≥85, B ≥70, C ≥55, D below).
 Test Coverage, Build Quality and Sonar Issues are **Phase 2** metrics and are not scored yet.
 
-## Data shapes (align with HLD DB model)
+## `POST /api/v1/analyze` mapping
 
-`Engineer` mirrors Employee + TechnicalScore + AIReport:
+The backend response is normalized in `src/lib/api.ts` to the UI's `LiveReport` shape:
 
-```ts
-{
-  id, employeeId, githubUsername, name, email, role, team,
-  score, grade, delta, commits, prs, reviews,
-  cats: { commit, pr, review, docs, branch, repo },   // 0–100 each
-  strengths: [], weaknesses: [], recommendation: "", learning: []
-}
+```
+commit_frequency          -> cats.commit
+pr_participation          -> cats.pr
+code_review_participation -> cats.review
+documentation_contribution-> cats.docs
+branch_hygiene            -> cats.branch
+repository_contribution   -> cats.repo
+technical_score / grade   -> score / grade
+ai_report.{strengths, weaknesses, recommendations, learning} -> report
 ```
 
-`Repo` mirrors Repository: `{ repositoryId, name, lang, visibility, updated, health, commits, prs, devs }`.
-
-> The scores and AI text in `data/mock.ts` are placeholder values, not real GitHub analysis.
-> The scoring engine and AI recommendation engine produce the real numbers.
