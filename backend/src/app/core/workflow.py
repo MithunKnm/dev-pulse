@@ -77,7 +77,7 @@ async def calculate_score_node(state: DevPulseState) -> dict:
 
 
 async def generate_ai_report_node(state: DevPulseState) -> dict:
-    """Node 5 — Call OpenAI to generate the Technical Excellence Report."""
+    """Node 5 — Call the Hugging Face-hosted LLM to generate the Technical Excellence Report."""
     employee: Employee = state["employee"]
     try:
         report = await generate_report(
@@ -89,8 +89,8 @@ async def generate_ai_report_node(state: DevPulseState) -> dict:
         )
         return {"ai_report": report}
     except RetryError:
-        logger.error("OpenAI rate limit exceeded after all retries for %s", employee.name)
-        return {"error": "OpenAI rate limit exceeded after retries"}
+        logger.error("Hugging Face rate limit exceeded after all retries for %s", employee.name)
+        return {"error": "Hugging Face rate limit exceeded after retries"}
 
 
 async def persist_to_db_node(state: DevPulseState) -> dict:

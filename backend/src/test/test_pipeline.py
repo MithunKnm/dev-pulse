@@ -50,7 +50,7 @@ async def main() -> None:
     _separator("DEV-PULSE E2E Pipeline Test")
     print(f"  Repo     : {owner}/{repo}")
     print(f"  Username : {username}")
-    print(f"  OpenAI   : {'set' if settings.openai_api_key else 'MISSING'}")
+    print(f"  HF Token : {'set' if settings.huggingface_api_token else 'MISSING'}")
     print(f"  GH Token : {'set' if settings.github_token else 'MISSING'}")
 
     if not settings.github_token:
