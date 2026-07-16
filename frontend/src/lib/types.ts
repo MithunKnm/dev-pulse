@@ -12,7 +12,7 @@ export interface CategoryScores {
   repo: number;   // Repository Contribution  15%
 }
 
-export type Grade = "A" | "B" | "C" | "D";
+export type Grade = "A" | "B" | "C" | "D" | "F";
 
 export type CategoryKey = keyof CategoryScores;
 

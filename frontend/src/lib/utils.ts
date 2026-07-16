@@ -24,9 +24,10 @@ export const gradeLabel = (s: number): string =>
   s >= 85 ? "Exemplary" : s >= 70 ? "Strong" : s >= 55 ? "Developing" : "At Risk";
 
 // HLD §4: Technical Scoring Engine emits a letter grade alongside the score
-// (e.g. "84/100, Grade A"). A ≥85, B ≥70, C ≥55, else D.
-export const gradeLetter = (s: number): "A" | "B" | "C" | "D" =>
-  s >= 85 ? "A" : s >= 70 ? "B" : s >= 55 ? "C" : "D";
+// (e.g. "84/100, Grade B"). Matches backend/app/analytics/scoring_engine.py:
+// A ≥90, B ≥80, C ≥70, D ≥60, else F.
+export const gradeLetter = (s: number): "A" | "B" | "C" | "D" | "F" =>
+  s >= 90 ? "A" : s >= 80 ? "B" : s >= 70 ? "C" : s >= 60 ? "D" : "F";
 
 export const initialsOf = (name: string): string =>
   name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
