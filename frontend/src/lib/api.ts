@@ -28,8 +28,18 @@ export async function checkHealth(): Promise<boolean> {
   }
 }
 
-function toGrade(g: string | null): Grade {
-  return g === "A" || g === "B" || g === "C" || g === "D" ? g : "D";
+function toGrade(g: string | null, score?: number | null): Grade {
+  if (g === "A" || g === "B" || g === "C" || g === "D" || g === "F") return g;
+  // Backend didn't send a recognized letter — derive one from the score
+  // instead of guessing, so a low score never gets mislabeled as "D".
+  if (typeof score === "number") {
+    if (score >= 90) return "A";
+    if (score >= 80) return "B";
+    if (score >= 70) return "C";
+    if (score >= 60) return "D";
+    return "F";
+  }
+  return "F";
 }
 
 /** Run the live DEV-PULSE pipeline for a developer on a repository. */
@@ -66,7 +76,7 @@ export async function analyzeDeveloper(input: AnalyzeInput): Promise<LiveReport>
   // Map backend snake_case metrics -> frontend CategoryScores keys (both 0-100).
   return {
     score: Math.round(data.technical_score),
-    grade: toGrade(data.grade),
+    grade: toGrade(data.grade, data.technical_score),
     cats: {
       commit: Math.round(m.commit_frequency),
       pr: Math.round(m.pr_participation),

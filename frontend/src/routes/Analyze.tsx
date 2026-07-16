@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Play, Loader2, AlertTriangle, Sparkles, Award, Lightbulb, Github } from "lucide-react";
+import { Play, Loader2, AlertTriangle, Sparkles, Award, Lightbulb, Github, Download } from "lucide-react";
 import { Card, Eyebrow } from "../components/Card";
 import { ScoreRing } from "../components/ScoreRing";
 import { CategoryBar } from "../components/CategoryBar";
 import { useAnalyze } from "../hooks/queries";
 import { CATEGORIES } from "../lib/metrics";
 import { gradeColor } from "../lib/utils";
+import { downloadReportPdf } from "../lib/exportReport";
 
 function Field({ label, value, onChange, placeholder, required }: {
   label: string; value: string; onChange: (v: string) => void; placeholder: string; required?: boolean;
@@ -100,7 +101,16 @@ export default function Analyze() {
             <div className="flex gap-7 items-center flex-wrap">
               <ScoreRing value={report.score} size={140} label="Technical" />
               <div className="flex-1 min-w-[240px]">
-                <Eyebrow>Live Technical Excellence Report</Eyebrow>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <Eyebrow>Live Technical Excellence Report</Eyebrow>
+                  <button
+                    type="button"
+                    onClick={() => downloadReportPdf(report, { name, githubUsername, owner, repo })}
+                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink bg-elev border border-border rounded-lg px-3 py-1.5 cursor-pointer hover:border-borderHi transition-colors"
+                  >
+                    <Download size={13} /> Download PDF
+                  </button>
+                </div>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   <h2 className="text-[24px] text-ink font-extrabold">
                     {name || githubUsername}
