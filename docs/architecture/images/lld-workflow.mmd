@@ -1,0 +1,12 @@
+graph TD
+    START((START)) --> fetch[fetch_github_data_node]
+    fetch --> check_fetch{error in state?}
+    check_fetch -- yes --> END_NODE((END))
+    check_fetch -- no --> norm[normalize_data_node]
+    norm --> metrics[extract_metrics_node]
+    metrics --> score[calculate_score_node]
+    score --> report[generate_ai_report_node]
+    report --> check_report{error in state?}
+    check_report -- yes --> END_NODE
+    check_report -- no --> persist[persist_to_db_node]
+    persist --> END_NODE

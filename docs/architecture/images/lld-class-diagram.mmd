@@ -1,0 +1,75 @@
+classDiagram
+    class Employee {
+        +str employee_id
+        +str github_username
+        +str name
+        +str email
+        +str role
+        +str team
+    }
+
+    class ActivityType {
+        COMMIT
+        PULL_REQUEST
+        REVIEW
+        BRANCH
+    }
+
+    class GenericActivity {
+        +str employee_id
+        +str github_username
+        +ActivityType activity_type
+        +str timestamp
+        +Dict metadata
+    }
+
+    class MetricsResult {
+        +float commit_frequency
+        +float pr_participation
+        +float code_review_participation
+        +float documentation_contribution
+        +float branch_hygiene
+        +float repository_contribution
+    }
+
+    class AIReport {
+        +List strengths
+        +List weaknesses
+        +List recommendations
+        +List learning
+    }
+
+    class DevPulseState {
+        +Employee employee
+        +str owner
+        +str repo
+        +Dict raw_github_data
+        +List normalized_activities
+        +MetricsResult metrics
+        +int technical_score
+        +str grade
+        +AIReport ai_report
+        +str error
+    }
+
+    class GitHubMCPClient {
+        -str _token
+        +fetch_developer_activity() Dict
+        -_call_tool() Any
+        -_fetch_commits() List
+        -_fetch_pull_requests() List
+        -_fetch_reviews() List
+    }
+
+    class DevPulseRepository {
+        +save_employee() None
+        +save_score() None
+        +save_report() None
+        +get_employee() Employee
+    }
+
+    DevPulseState --> Employee
+    DevPulseState --> GenericActivity
+    DevPulseState --> MetricsResult
+    DevPulseState --> AIReport
+    GenericActivity --> ActivityType

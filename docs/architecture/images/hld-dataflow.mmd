@@ -1,0 +1,8 @@
+graph LR
+    A[1 Fetch GitHub Data] --> B[2 Normalize Data]
+    B --> C[3 Extract Metrics]
+    C --> D[4 Calculate Score]
+    D --> E[5 Generate AI Report]
+    E --> F[6 Persist to DB]
+    A -- error --> END_NODE((END))
+    E -- error --> END_NODE

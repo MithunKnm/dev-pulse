@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> fetch_github_data
+    fetch_github_data --> normalize_data : no error
+    fetch_github_data --> [*] : error abort
+    normalize_data --> extract_metrics
+    extract_metrics --> calculate_score
+    calculate_score --> generate_ai_report
+    generate_ai_report --> persist_to_db : no error
+    generate_ai_report --> [*] : error abort
+    persist_to_db --> [*]

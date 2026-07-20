@@ -1,0 +1,57 @@
+sequenceDiagram
+    autonumber
+    participant Client as React Frontend
+    participant API as FastAPI
+    participant WF as LangGraph Workflow
+    participant MCP as GitHubMCPClient
+    participant GH as GitHub MCP Server
+    participant Norm as Normalizer
+    participant Met as Metrics Engine
+    participant Scr as Scoring Engine
+    participant HF as Hugging Face LLM
+    participant DB as DB Repository
+
+    Client->>API: POST /api/v1/analyze
+    API->>API: Validate AnalyzeRequest
+    API->>WF: run_pipeline(owner, repo, employee)
+
+    Note over WF: Node 1 fetch_github_data
+    WF->>MCP: fetch_developer_activity
+    MCP->>GH: spawn npx server-github
+    MCP->>GH: session.initialize
+    MCP->>GH: list_tools
+    GH-->>MCP: available tools
+    MCP->>GH: call_tool list_commits
+    GH-->>MCP: commits list
+    MCP->>MCP: Client-side filter by author
+    MCP->>GH: call_tool list_pull_requests
+    GH-->>MCP: pull_requests list
+    loop For each PR
+        MCP->>GH: call_tool get_pull_request_reviews
+        GH-->>MCP: reviews list
+    end
+    MCP-->>WF: raw data dict
+
+    Note over WF: Node 2 normalize_data
+    WF->>Norm: normalize raw_data
+    Norm->>Norm: DataNormalizer.normalize_batch
+    Norm-->>WF: GenericActivity list
+
+    Note over WF: Node 3 extract_metrics
+    WF->>Met: extract_metrics
+    Met-->>WF: MetricsResult
+
+    Note over WF: Node 4 calculate_score
+    WF->>Scr: calculate_score
+    Scr-->>WF: score and grade
+
+    Note over WF: Node 5 generate_ai_report
+    WF->>HF: generate_report
+    HF-->>WF: AIReport object
+
+    Note over WF: Node 6 persist_to_db
+    WF->>DB: save_employee + save_score + save_report
+    DB-->>WF: logged
+
+    WF-->>API: DevPulseState final
+    API-->>Client: 200 OK response

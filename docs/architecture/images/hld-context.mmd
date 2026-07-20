@@ -1,0 +1,5 @@
+graph LR
+    Manager[Engineering Manager] --> FE[React Dashboard]
+    FE -- POST /api/v1/analyze --> Backend[DEV-PULSE Backend]
+    Backend -- MCP stdio --> GitHub[GitHub]
+    Backend -- HTTPS --> HF[Hugging Face LLM]

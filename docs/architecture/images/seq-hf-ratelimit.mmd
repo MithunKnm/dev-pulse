@@ -1,0 +1,20 @@
+sequenceDiagram
+    autonumber
+    participant WF as LangGraph Workflow
+    participant HF as Hugging Face LLM
+    participant HFAPI as HF Inference API
+
+    Note over WF: Nodes 1-4 succeed
+    WF->>HF: generate_report
+
+    loop Retry max 5 attempts
+        HF->>HFAPI: POST to Qwen model
+        HFAPI--xHF: 429 Too Many Requests
+        HF->>HF: Wait exponential backoff
+    end
+
+    HF--xWF: RetryError exhausted
+    WF->>WF: Set error state
+
+    Note over WF: Conditional edge - abort
+    WF-->>WF: route to END

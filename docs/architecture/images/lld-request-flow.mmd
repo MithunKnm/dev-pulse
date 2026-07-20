@@ -1,0 +1,6 @@
+graph LR
+    REQ[AnalyzeRequest] -- validate --> EMP[Employee object]
+    EMP --> PIPE[run_pipeline]
+    PIPE --> STATE[DevPulseState final]
+    STATE -- error --> ERR[HTTPException 502]
+    STATE -- success --> RESP[AnalyzeResponse]

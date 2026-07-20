@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    participant Client as React Frontend
+    participant API as FastAPI
+    participant WF as LangGraph Workflow
+    participant MCP as GitHubMCPClient
+    participant GH as GitHub MCP Server
+
+    Client->>API: POST /api/v1/analyze
+    API->>WF: run_pipeline
+
+    Note over WF: Node 1 fetch_github_data
+    WF->>MCP: fetch_developer_activity
+    MCP->>GH: spawn npx server
+    GH--xMCP: Connection failed
+    MCP->>MCP: Unwrap exception
+    MCP-->>WF: error MCP Fetch Failed
+
+    Note over WF: Conditional edge - abort
+    WF->>WF: route to END
+
+    WF-->>API: DevPulseState with error
+    API-->>Client: 502 Bad Gateway

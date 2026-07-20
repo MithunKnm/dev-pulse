@@ -1,0 +1,9 @@
+graph TD
+    A[fetch_developer_activity] --> B[Open stdio_client]
+    B --> C[ClientSession.initialize]
+    C --> D[list_tools]
+    D --> E[_fetch_commits]
+    E --> F[_fetch_pull_requests]
+    F --> G[_fetch_reviews per PR]
+    G --> H[_fetch_branches - skipped]
+    H --> I[Return aggregated dict]
