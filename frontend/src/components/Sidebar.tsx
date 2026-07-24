@@ -1,9 +1,11 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Zap, Activity, Sparkles } from "lucide-react";
+import { LayoutDashboard, Zap, Activity, Sparkles, FolderGit2, Users } from "lucide-react";
 
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, end: true },
   { to: "/analyze", label: "Live Analysis", icon: Zap },
+  { to: "/repositories", label: "Repositories", icon: FolderGit2 },
+  { to: "/developers", label: "Developers", icon: Users },
 ];
 
 export function Sidebar() {

@@ -12,7 +12,26 @@
 // stored developers, repositories, insights, or reports to show — only the
 // live, on-demand analysis below.
 // -----------------------------------------------------------------------------
-import type { AnalyzeInput, AnalyzeApiResponse, LiveReport, Grade } from "./types";
+import type {
+  AnalyzeInput,
+  AnalyzeApiResponse,
+  LiveReport,
+  Grade,
+  RepoSummary,
+  RepoDetails,
+  RepoCompareResult,
+  DeveloperSummary,
+  DeveloperDetails,
+  DeveloperCompareResult,
+} from "./types";
+import {
+  mockRepoList,
+  mockRepoDetails,
+  mockRepoCompareSummary,
+  mockDeveloperList,
+  mockDeveloperDetails,
+  mockDeveloperCompareSummary,
+} from "./mock";
 
 // Point this at the running FastAPI server. Override with VITE_API_BASE in .env.
 export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -90,4 +109,87 @@ export async function analyzeDeveloper(input: AnalyzeInput): Promise<LiveReport>
     recommendations: data.ai_report.recommendations ?? [],
     learning: data.ai_report.learning ?? [],
   };
+}
+
+// -----------------------------------------------------------------------------
+// Phase 2 — Repositories & Developers
+//
+// These endpoints (GET /repos, GET /repos/{repo}, POST /repos/compare,
+// GET /users, GET /users/{user}, POST /users/compare) are the Phase-2 backend
+// contract. They aren't implemented on the server yet, so every function
+// below tries the real call first and, on any failure (network error, 404,
+// non-2xx), transparently falls back to lib/mock.ts. Nothing here needs to
+// change once the backend ships — the mock path just stops being hit.
+// -----------------------------------------------------------------------------
+
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`);
+  return res.json();
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`);
+  return res.json();
+}
+
+export async function fetchRepos(): Promise<RepoSummary[]> {
+  try {
+    return await getJson<RepoSummary[]>("/api/v1/repos");
+  } catch {
+    return mockRepoList();
+  }
+}
+
+export async function fetchRepo(id: string): Promise<RepoDetails> {
+  try {
+    return await getJson<RepoDetails>(`/api/v1/repos/${encodeURIComponent(id)}`);
+  } catch {
+    return mockRepoDetails(id);
+  }
+}
+
+export async function compareRepos(idA: string, idB: string): Promise<RepoCompareResult> {
+  try {
+    return await postJson<RepoCompareResult>("/api/v1/repos/compare", { a: idA, b: idB });
+  } catch {
+    const [a, b] = await Promise.all([fetchRepo(idA), fetchRepo(idB)]);
+    return { a, b, aiSummary: mockRepoCompareSummary(a, b) };
+  }
+}
+
+export async function fetchDevelopers(): Promise<DeveloperSummary[]> {
+  try {
+    return await getJson<DeveloperSummary[]>("/api/v1/users");
+  } catch {
+    return mockDeveloperList();
+  }
+}
+
+export async function fetchDeveloper(username: string): Promise<DeveloperDetails> {
+  try {
+    return await getJson<DeveloperDetails>(`/api/v1/users/${encodeURIComponent(username)}`);
+  } catch {
+    return mockDeveloperDetails(username);
+  }
+}
+
+export async function compareDevelopers(
+  usernameA: string,
+  usernameB: string
+): Promise<DeveloperCompareResult> {
+  try {
+    return await postJson<DeveloperCompareResult>("/api/v1/users/compare", {
+      a: usernameA,
+      b: usernameB,
+    });
+  } catch {
+    const [a, b] = await Promise.all([fetchDeveloper(usernameA), fetchDeveloper(usernameB)]);
+    return { a, b, aiSummary: mockDeveloperCompareSummary(a, b) };
+  }
 }

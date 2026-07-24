@@ -67,3 +67,87 @@ export interface LiveReport {
   recommendations: string[];
   learning: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Repositories & Developers (list, details, compare)
+//
+// Backed by GET /repos, GET /repos/{repo}, POST /repos/compare,
+// GET /users, GET /users/{user}, POST /users/compare (see lib/api.ts).
+// Until those endpoints ship, lib/mock.ts supplies this same shape so the
+// screens below work end-to-end today.
+// ---------------------------------------------------------------------------
+
+export type RepoStatus = "healthy" | "attention" | "critical";
+
+export interface RepoSummary {
+  id: string; // "owner/repo"
+  owner: string;
+  repo: string;
+  healthScore: number;
+  stars: number;
+  openPRs: number;
+  openIssues: number;
+  lastCommit: string;
+  contributors: number;
+  language: string;
+  status: RepoStatus;
+}
+
+export interface TrendPoint {
+  label: string;
+  value: number;
+}
+
+export interface Contributor {
+  username: string;
+  name: string;
+  commits: number;
+}
+
+export interface Release {
+  tag: string;
+  date: string;
+  title: string;
+}
+
+export interface RepoDetails extends RepoSummary {
+  commitTrend: TrendPoint[];
+  prTrend: TrendPoint[];
+  issueTrend: TrendPoint[];
+  branchProtection: boolean;
+  avgReviewTimeHours: number;
+  topContributors: Contributor[];
+  recentReleases: Release[];
+}
+
+export interface RepoCompareResult {
+  a: RepoDetails;
+  b: RepoDetails;
+  aiSummary: string;
+}
+
+export interface DeveloperSummary {
+  id: string; // github username
+  username: string;
+  name: string;
+  commits: number;
+  prs: number;
+  reviews: number;
+  activityScore: number;
+}
+
+export interface DeveloperDetails extends DeveloperSummary {
+  experienceTrend: TrendPoint[];
+  weeklyActivity: TrendPoint[];
+  codingConsistency: number;
+  reviewParticipation: number;
+  avgPrSize: "Small" | "Medium" | "Large";
+  mergeSuccessRate: number;
+  technicalExcellenceScore: number;
+}
+
+export interface DeveloperCompareResult {
+  a: DeveloperDetails;
+  b: DeveloperDetails;
+  aiSummary: string;
+}
